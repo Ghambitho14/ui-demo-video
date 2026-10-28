@@ -222,6 +222,18 @@ teléfono a la hora de la cena…», con el sonido de las notificaciones), humor
 y cerrar con una frase que vuelva al gancho («Deja el chat para los amigos»). El texto en pantalla debe contar la historia
 sin sonido: la mayoría mira en silencio.
 
+## Montajes: varias pantallas, escena por negocio y ambiente sonoro
+
+Para reels que muestran varias apps o locales (ejemplo completo: `saas-godcode-admin/scripts/video/tu-carta.cjs`):
+
+- `urls.screens: { nombre: '/ruta' }` precarga más iframes; `swapTo(nombre, { unload, sound })` entra con el mismo «push». `api.frames[nombre]` da el frame de cada una (para limpiar carritos o hacer scroll fuera de cámara).
+- `stage: { css, html }` agrega decoración propia detrás del teléfono (`#decor`). `scene(nombre)` pone la clase `scene-<nombre>` en `#stage` para cambiar fondos o acentos por escena con CSS.
+- `headline(kicker, título, [índices clave])` es el titular editorial arriba (kicker en cursiva fina, título en `displayFont`); `headline(null)` lo quita. Colores y tamaño: `brand.headInk`, `headKey`, `headKick`, `headSize`, `kickerFont`.
+- `mark(selector, { pad })` dibuja un óvalo a mano sobre un elemento del iframe (`brand.markColor`); `mark(null)` borra todos.
+- `ambience('fuego'|'plancha'|'olas'|'agua'|'local'|null, { volume, fade })` cambia el sonido de fondo; baja solo mientras habla la voz y se cierra al terminar la toma.
+- Sin tarjeta de intro: oculta `#intro` en la primera línea de `run` y usa `window.camInstant(...)`.
+- `DUMP_STAGE=1 node record-demo.cjs escenario.cjs out` guarda `out/escena.html` sin grabar, para revisar el diseño de la escena.
+
 ## Por qué el dedo toca donde debe
 
 - La posición se calcula en coordenadas del iframe y se convierte a la escena **en cada cuadro**, con `getBoundingClientRect` del iframe, que ya incluye la cámara. Si la cámara o un panel se mueven, el dedo sigue encima.

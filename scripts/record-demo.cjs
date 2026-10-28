@@ -123,6 +123,27 @@ html,body{width:${W}px;height:${H}px;overflow:hidden;background:${brand.accent}}
 #alt{opacity:0;transform:translateX(34px);pointer-events:none}
 #alt.here{opacity:1;transform:none;pointer-events:auto}
 #main.gone{opacity:0;transform:translateX(-34px);pointer-events:none}
+/* Pantallas extra precargadas (urls.screens): esperan a la derecha y entran con el mismo «push». */
+#screen iframe.scr{opacity:0;transform:translateX(34px);pointer-events:none}
+#screen iframe.here{opacity:1;transform:none;pointer-events:auto}
+#screen iframe.gone{opacity:0;transform:translateX(-34px);pointer-events:none}
+/* Titular estilo editorial (api.headline): entradilla en cursiva liviana y palabra fuerte condensada. */
+#head{position:absolute;left:0;right:0;top:${CAP_TOP + 4}px;z-index:9;text-align:center;padding:0 30px;pointer-events:none}
+#head .kick{font-family:${brand.kickerFont || brand.uiFont},system-ui,sans-serif;font-style:italic;font-weight:300;font-size:34px;line-height:1.05;color:${brand.headKick || brand.accent};min-height:1em}
+#head .ttl{font-family:${brand.displayFont};font-size:${brand.headSize || 84}px;line-height:.9;color:${brand.headInk || '#101014'};margin-top:2px}
+#head .w{display:inline-block;margin-right:.2em;opacity:0;transform:translateY(55%);animation:win ${d(0.46)} ${EASE_OUT} forwards}
+#head .w:last-child{margin-right:0}
+#head .w.out{animation:wout ${d(0.16)} cubic-bezier(.5,0,1,1) forwards}
+#head .ttl .k{color:${brand.headKey || brand.accent}}
+/* Marca de plumón (api.mark): un óvalo dibujado a mano sobre un elemento de la app. */
+#marks{position:absolute;inset:0;z-index:8;pointer-events:none;overflow:visible}
+#marks path{fill:none;stroke:${brand.markColor || '#e11d2e'};stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw ${d(0.5)} cubic-bezier(.6,0,.2,1) forwards;filter:drop-shadow(0 2px 2px rgba(0,0,0,.18))}
+#marks path.out{animation:unmark ${d(0.25)} ease-in forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes unmark{to{opacity:0}}
+/* Decoración propia del escenario (stage.css / stage.html) y cambio de ambiente con api.scene(nombre). */
+#decor{position:absolute;inset:0;pointer-events:none}
+${S.stage?.css || ''}
 #finger{position:absolute;left:0;top:0;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;z-index:8;pointer-events:none;will-change:transform;
   background:rgba(255,255,255,.55);border:2.5px solid #fff;box-shadow:0 0 0 6px color-mix(in srgb,${brand.accent} 28%,transparent),0 10px 24px rgba(20,24,90,.35);transition:opacity ${d(0.3)};opacity:0}
 #finger.on{opacity:1}
@@ -231,10 +252,10 @@ ${HORIZ ? `/* Horizontal: título a la izquierda, grande; el teléfono queda a l
 @keyframes tick{50%{opacity:.03}}
 canvas#fx{position:absolute;inset:0;width:100%;height:100%;z-index:9;pointer-events:none}
 </style></head><body><div id="stage">
-<div id="scene"></div><div id="celebrate-bg"></div>
+<div id="scene"><div id="decor">${S.stage?.html || ''}</div></div><div id="celebrate-bg"></div>
 <div id="persp"><div id="cam" style="transform:translate3d(${OX}px,${1150 * K}px,0) scale(${0.9 * K})"><div id="phone"><div id="screen">
-<iframe id="main" src="about:blank" allow="geolocation"></iframe><iframe id="alt" src="about:blank" allow="geolocation"></iframe></div></div></div></div>
-<div id="cap"></div><div id="finger"></div>${ENGINE === 'live' ? '<div id="tick"></div>' : ''}
+<iframe id="main" src="about:blank" allow="geolocation"></iframe><iframe id="alt" src="about:blank" allow="geolocation"></iframe>${Object.keys(S.urls?.screens || {}).map((n) => `<iframe id="scr-${n}" class="scr" src="about:blank" allow="geolocation"></iframe>`).join('')}</div></div></div></div><svg id="marks"></svg>
+<div id="cap"></div><div id="head"><div class="kick" id="hk1"></div><div class="ttl" id="hk2"></div></div><div id="finger"></div>${ENGINE === 'live' ? '<div id="tick"></div>' : ''}
 <div id="celebrate" class="card"><div class="big" id="celebrateText"></div><p>${copy.celebrateSub}</p></div>
 <canvas id="fx"></canvas><div id="ticket"></div><div id="chip"></div><div id="flash"></div>
 <div id="intro" class="card"><div class="big l1" id="i1"></div><div class="big l2" id="i2"></div></div>
@@ -281,6 +302,21 @@ window.caption=(text,key=[])=>{const c=$('cap');
 let active='main';
 /* Tras el cambio, el iframe de atrás se vacía: seguía vivo gastando pintado y CPU de su proceso. */
 window.swapToAlt=(unload)=>{$('alt').classList.add('here');$('main').classList.add('gone');active='alt';if(unload)setTimeout(()=>{$('main').src='about:blank';},700*T);};
+/* Cambio a cualquier pantalla precargada (main, alt o urls.screens): la nueva entra desde la derecha. */
+window.swapTo=(id,unload)=>{const cur=$(active),nx=$(id);if(!nx||cur===nx)return;nx.classList.remove('gone','scr');nx.classList.add('here');cur.classList.remove('here');cur.classList.add('gone');const was=active;active=id;
+  if(unload)setTimeout(()=>{if(active!==was)$(was).src='about:blank';},700*T);};
+/* Titular editorial: la entradilla y el título salen hacia arriba y entran palabra por palabra. */
+window.headline=(kick,ttl,key=[])=>{const a=$('hk1'),b=$('hk2');const old=[...a.querySelectorAll('.w'),...b.querySelectorAll('.w')];
+  const fill=()=>{words(a,kick||'',{step:60});words(b,ttl||'',{key,delay:kick?200:0,step:85});};
+  if(old.length){old.forEach((w,i)=>{w.classList.add('out');w.style.animationDelay=(i*12*T)+'ms';});setTimeout(fill,(170+old.length*12)*T);}else fill();};
+/* Óvalo de plumón alrededor de un rectángulo de la app (coordenadas del iframe activo). */
+window.mark=(x,y,w,h)=>{const [x0,y0]=frameXY(x,y),[x1,y1]=frameXY(x+w,y+h);const cx=(x0+x1)/2,cy=(y0+y1)/2,rx=(x1-x0)/2+14,ry=(y1-y0)/2+12;
+  const p=document.createElementNS('http://www.w3.org/2000/svg','path');const k=.5523;
+  p.setAttribute('d','M'+(cx-rx*.15)+' '+(cy-ry)+' C'+(cx+rx*k)+' '+(cy-ry*1.04)+' '+(cx+rx)+' '+(cy-ry*k)+' '+(cx+rx)+' '+cy+' S'+(cx+rx*k)+' '+(cy+ry)+' '+cx+' '+(cy+ry)+' S'+(cx-rx)+' '+(cy+ry*k)+' '+(cx-rx)+' '+cy+' S'+(cx-rx*.6)+' '+(cy-ry*1.08)+' '+(cx+rx*.25)+' '+(cy-ry*1.12));
+  $('marks').appendChild(p);const len=Math.ceil(p.getTotalLength());p.style.setProperty('--len',len);};
+window.unmark=()=>[...$('marks').children].forEach(p=>{p.classList.add('out');setTimeout(()=>p.remove(),300*T);});
+/* Ambiente visual del escenario: cambia la clase del escenario; el CSS de stage.css hace el resto. */
+window.scene=(name)=>{const st=$('stage');[...st.classList].filter(c=>c.startsWith('scene-')).forEach(c=>st.classList.remove(c));if(name)st.classList.add('scene-'+name);};
 const frameXY=(x,y)=>{const r=$(active).getBoundingClientRect();const k=r.width/390;return [r.left+x*k,r.top+y*k];};
 /* El dedo persigue su objetivo cuadro a cuadro: si la cámara o un panel se mueven, sigue encima del botón.
    El seguimiento depende del tiempo transcurrido, no de los cuadros: igual de ágil a 30 o a 60 fps. */
@@ -310,6 +346,9 @@ window.startRec=async()=>{const s=await navigator.mediaDevices.getDisplayMedia({
 window.stopRec=()=>new Promise(r=>{window.__rec.onstop=()=>{window.__stream.getTracks().forEach(t=>t.stop());window.__blob=new Blob(window.__chunks,{type:'video/mp4'});r(window.__blob.size)};window.__rec.stop();});` : ''}
 window.readSlice=(i)=>new Promise(r=>{const size=4*1024*1024;const part=window.__blob.slice(i*size,(i+1)*size);if(!part.size)return r(null);const fr=new FileReader();fr.onload=()=>r(String(fr.result).split(',')[1]);fr.readAsDataURL(part);});
 </script></body></html>`;
+
+// DUMP_STAGE=1: guarda el HTML de la escena (para revisar diseño y funciones sin grabar) y termina.
+if (process.env.DUMP_STAGE) { fs.mkdirSync(OUT, { recursive: true }); fs.writeFileSync(path.join(OUT, 'escena.html'), STAGE); console.log('escena guardada en', path.join(OUT, 'escena.html')); process.exit(0); }
 
 // Página aparte que recibe cada foto y la codifica a H.264 (WebCodecs) dentro de un MP4 (mp4-muxer).
 const ENCODER = `<!doctype html><html><head><meta charset="utf-8">
@@ -344,7 +383,29 @@ window.encAudio=async({clips,total,gain})=>{const SR=48000;const ctx=new Offline
     success:(t,d)=>[523.25,659.25,783.99,1046.5].forEach((f,i)=>tone(t+i*.085,f,'triangle',.32,.55,d)),
     ding:(t,d)=>{tone(t,1318.5,'sine',.36,1.1,d);tone(t,2637,'sine',.1,.6,d);}};
   const sfxBus=ctx.createGain();sfxBus.gain.value=.8;sfxBus.connect(comp);
-  for(const c of clips){if(c.synth){const g=ctx.createGain();g.gain.value=c.volume??1;g.connect(sfxBus);(SYN[c.synth]||SYN.pop)(c.at,g);continue;}
+  /* Ambientes: ruido filtrado y eventos al azar (semilla fija: siempre suenan igual). Bajan mientras habla la voz. */
+  let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+  const ambBus=ctx.createGain();ambBus.gain.value=1;ambBus.connect(comp);
+  const voiceSpans=clips.filter(c=>c.b64).map(c=>[c.at,c.at+(c.dur||2)]);
+  ambBus.gain.setValueAtTime(1,0);for(const [a,b] of voiceSpans){ambBus.gain.setTargetAtTime(.42,Math.max(0,a-.15),.08);ambBus.gain.setTargetAtTime(1,b+.1,.25);}
+  const loopNoise=(dst,{type='lowpass',f=800,q=.7,gain=.3,t0,t1})=>{const src=ctx.createBufferSource();src.buffer=noise;src.loop=true;const bq=ctx.createBiquadFilter();bq.type=type;bq.frequency.value=f;bq.Q.value=q;const g=ctx.createGain();g.gain.value=gain;src.connect(bq).connect(g).connect(dst);src.start(t0,rnd()*.9);src.stop(t1+.1);return {g,bq};};
+  const AMB={
+    fuego:(t0,t1,d)=>{loopNoise(d,{f:420,gain:.55,t0,t1});const hiss=loopNoise(d,{type:'bandpass',f:2400,q:.6,gain:.05,t0,t1});
+      for(let t=t0;t<t1;t+=.03+rnd()*.16){burst(t,.012+rnd()*.03,d,{f:1800+rnd()*3500,peak:.12+rnd()*.38,a:.002});if(rnd()<.08)burst(t,.06,d,{type:'lowpass',f:500,peak:.5,a:.004});}
+      for(let t=t0;t<t1;t+=.5)hiss.g.gain.linearRampToValueAtTime(.03+rnd()*.06,t);},
+    plancha:(t0,t1,d)=>{const s=loopNoise(d,{type:'highpass',f:3800,q:.5,gain:.22,t0,t1});loopNoise(d,{type:'bandpass',f:900,q:.8,gain:.06,t0,t1});
+      for(let t=t0;t<t1;t+=.06)s.g.gain.linearRampToValueAtTime(.12+rnd()*.2,t);
+      for(let t=t0;t<t1;t+=.08+rnd()*.3)burst(t,.008+rnd()*.02,d,{f:3000+rnd()*4000,peak:.1+rnd()*.25,a:.001});},
+    olas:(t0,t1,d)=>{const w=loopNoise(d,{f:500,q:.4,gain:.0001,t0,t1});const per=5.2;
+      for(let t=t0;t<t1;t+=per){const a=t+per*.45;w.g.gain.linearRampToValueAtTime(.5,a);w.g.gain.linearRampToValueAtTime(.06,t+per);w.bq.frequency.linearRampToValueAtTime(1500,a);w.bq.frequency.linearRampToValueAtTime(400,t+per);}
+      loopNoise(d,{type:'highpass',f:5000,gain:.015,t0,t1});},
+    agua:(t0,t1,d)=>{loopNoise(d,{type:'bandpass',f:1200,q:.5,gain:.015,t0,t1});
+      for(let t=t0+.2;t<t1;t+=.45+rnd()*.9){const o=ctx.createOscillator(),g=ctx.createGain();const f=900+rnd()*700;o.type='sine';o.frequency.setValueAtTime(f*1.6,t);o.frequency.exponentialRampToValueAtTime(f,t+.06);env(g,t,.003,.12+rnd()*.08,.12);o.connect(g).connect(d);o.start(t);o.stop(t+.2);}
+      for(let t=t0+1;t<t1;t+=2.4+rnd()*2){[2093,2637,3136].forEach((f,i)=>tone(t+i*.11+rnd()*.05,f*(1+rnd()*.01),'sine',.035,2.2,d));}},
+    local:(t0,t1,d)=>{loopNoise(d,{f:380,q:.5,gain:.28,t0,t1});loopNoise(d,{type:'bandpass',f:700,q:.9,gain:.05,t0,t1});
+      for(let t=t0+.3;t<t1;t+=.6+rnd()*1.4){tone(t,2600+rnd()*1800,'sine',.03+rnd()*.03,.18,d);}}};
+  for(const c of clips){if(!c.amb)continue;const g=ctx.createGain();const v=c.volume??.5,f=c.fade??.8,end=c.to??total;g.gain.setValueAtTime(0,c.at);g.gain.linearRampToValueAtTime(v,c.at+f);g.gain.setValueAtTime(v,Math.max(c.at+f,end-(c.fadeOut??f)));g.gain.linearRampToValueAtTime(0,end);g.connect(ambBus);(AMB[c.amb]||AMB.local)(c.at,end,g);}
+  for(const c of clips){if(c.amb)continue;if(c.synth){const g=ctx.createGain();g.gain.value=c.volume??1;g.connect(sfxBus);(SYN[c.synth]||SYN.pop)(c.at,g);continue;}
     const buf=await ctx.decodeAudioData(Uint8Array.from(atob(c.b64),ch=>ch.charCodeAt(0)).buffer);const src=ctx.createBufferSource();src.buffer=buf;
     const g=ctx.createGain();g.gain.value=c.volume??1;src.connect(g).connect(master);src.start(c.at);}
   const out=await ctx.startRendering();let aerr=null;
@@ -474,6 +535,8 @@ const readBlob = async (pg) => {
 
 	const urls = S.urls || {};
 	await page.evaluate(([m, a]) => { document.getElementById('main').src = m; if (a) document.getElementById('alt').src = a; }, [APP + urls.main, urls.alt ? APP + urls.alt : null]);
+	const screens = urls.screens || {};
+	for (const [n, u] of Object.entries(screens)) await page.evaluate(([id, src]) => { document.getElementById(id).src = src; }, [`scr-${n}`, APP + u]);
 	const findFrame = async (id) => {
 		for (let i = 0; i < 200; i++) {
 			const handle = await page.$(`#${id}`);
@@ -484,6 +547,7 @@ const readBlob = async (pg) => {
 		throw new Error(`el iframe #${id} no cargó`);
 	};
 	const frames = { main: await findFrame('main'), alt: urls.alt ? await findFrame('alt') : null };
+	for (const n of Object.keys(screens)) frames[n] = await findFrame(`scr-${n}`);
 	for (const f of Object.values(frames)) {
 		if (!f) continue;
 		await f.waitForLoadState('networkidle');
@@ -636,6 +700,37 @@ const readBlob = async (pg) => {
 		/** Cambio a la pantalla precargada con un «push» (en vez de navegar: una navegación congela ~1 s). */
 		// { unload: false } si el guion vuelve a usar frames.main después del cambio.
 		swapToAlt: async ({ unload = true } = {}) => { await page.evaluate((u) => window.swapToAlt(u), unload); frame = frames.alt; },
+		/** Cambio a cualquier pantalla precargada: 'main', 'alt' o un nombre de urls.screens. `unload` vacía la anterior. */
+		swapTo: async (name, { unload = false, sound = true } = {}) => {
+			const id = name === 'main' || name === 'alt' ? name : `scr-${name}`;
+			if (!frames[name]) throw new Error(`No hay pantalla «${name}» (declárala en urls.screens)`);
+			if (sound) api.sfx('whoosh', { volume: 0.55 });
+			await page.evaluate(([i, u]) => window.swapTo(i, u), [id, unload]);
+			frame = frames[name];
+		},
+		/** Titular editorial: entradilla en cursiva y título condensado (índices de palabras resaltadas). headline(null) lo oculta. */
+		headline: (kick, title, key = []) => page.evaluate(([a, b, k]) => (a == null && b == null ? window.headline('', '', []) : window.headline(a, b, k)), [kick ?? null, title ?? null, key]),
+		/** Óvalo de plumón alrededor de un elemento de la app (selector o locator). mark(null) borra todas. */
+		mark: async (target, { pad = 0 } = {}) => {
+			if (!target) return page.evaluate(() => window.unmark());
+			const el = resolve(target);
+			const r = await el.evaluate((n) => { const b = n.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; });
+			api.sfx('tap', { volume: 0.3 });
+			return page.evaluate(([x, y, w, h]) => window.mark(x, y, w, h), [r.x - pad, r.y - pad, r.w + pad * 2, r.h + pad * 2]);
+		},
+		/** Ambiente visual del escenario (clase scene-<nombre> en #stage, la define stage.css). */
+		scene: (name) => page.evaluate((n) => window.scene(n), name || null),
+		/**
+		 * Ambiente sonoro sintetizado de fondo: 'fuego', 'plancha', 'olas', 'agua', 'local' (o null para cortar).
+		 * Hace fundido con el anterior y baja solo mientras suena la voz en off.
+		 */
+		ambience: (name, { volume = 0.5, fade = 0.8 } = {}) => {
+			if (!SFX) return;
+			const t = nowVideo();
+			const open = clips.filter((c) => c.amb && c.to == null);
+			open.forEach((c) => { c.to = t + fade; c.fadeOut = fade; });
+			if (name) clips.push({ amb: name, at: t, to: null, volume, fade });
+		},
 	};
 
 	/** Scroll con aceleración y frenado suaves, cuadro a cuadro (no uses behavior:'smooth'). */
@@ -759,13 +854,14 @@ const readBlob = async (pg) => {
 		await sleep(250);
 		await S.run(api);
 		await sleep(300);
+		clips.filter((c) => c.amb && c.to == null).forEach((c) => { c.to = nowVideo(); c.fadeOut = Math.min(0.6, c.fade); });
 		clock.stop = true;
 		await pump;
 		if (clips.length || voice || SFX) {
 			// Sin clips igual se escribe una pista (silencio): el MP4 se declaró con audio al empezar.
-			const payload = clips.map((c) => (c.synth ? c : { b64: fs.readFileSync(path.join(voiceDir, voice[c.id].file)).toString('base64'), at: c.at, volume: c.volume }));
+			const payload = clips.map((c) => (c.synth || c.amb ? c : { b64: fs.readFileSync(path.join(voiceDir, voice[c.id].file)).toString('base64'), at: c.at, volume: c.volume, dur: voice[c.id].duration }));
 			const secs = await encPage.evaluate((o) => window.encAudio(o), { clips: payload, total: nowVideo(), gain: S.voice?.gain ?? 1 });
-			console.log(`audio: ${clips.filter((c) => !c.synth).length} frases y ${clips.filter((c) => c.synth).length} efectos (${secs.toFixed(1)} s)`);
+			console.log(`audio: ${clips.filter((c) => !c.synth && !c.amb).length} frases, ${clips.filter((c) => c.synth).length} efectos y ${clips.filter((c) => c.amb).length} ambientes (${secs.toFixed(1)} s)`);
 		}
 		const { frames: n } = await encPage.evaluate(() => window.encEnd());
 		fs.writeFileSync(file, await readBlob(encPage));
