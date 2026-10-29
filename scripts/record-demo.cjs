@@ -120,13 +120,16 @@ html,body{width:${W}px;height:${H}px;overflow:hidden;background:${brand.accent}}
 #screen{position:relative;width:390px;height:844px;border-radius:48px;overflow:hidden;background:#fff}
 /* Cambio de pantalla tipo «push»: la nueva entra desde la derecha, la anterior se corre y se apaga. */
 #screen iframe{position:absolute;inset:0;width:390px;height:844px;border:0;display:block;transition:opacity ${d(0.34)} cubic-bezier(.4,0,.2,1),transform ${d(0.48)} ${EASE_OUT}}
-#alt{opacity:0;transform:translateX(34px);pointer-events:none}
-#alt.here{opacity:1;transform:none;pointer-events:auto}
-#main.gone{opacity:0;transform:translateX(-34px);pointer-events:none}
+/* Las pantallas en espera además van con visibility:hidden: un iframe de otro origen con opacity:0 igual
+   tapaba con blanco una franja del iframe activo en las capturas (Edge/Chromium sin cabeza). Al salir,
+   visibility cambia recién al final del fundido. */
+#alt{opacity:0;transform:translateX(34px);pointer-events:none;visibility:hidden}
+#alt.here{opacity:1;transform:none;pointer-events:auto;visibility:visible}
+#main.gone{opacity:0;transform:translateX(-34px);pointer-events:none;visibility:hidden;transition:opacity ${d(0.34)} cubic-bezier(.4,0,.2,1),transform ${d(0.48)} ${EASE_OUT},visibility 0s linear ${d(0.5)}}
 /* Pantallas extra precargadas (urls.screens): esperan a la derecha y entran con el mismo «push». */
-#screen iframe.scr{opacity:0;transform:translateX(34px);pointer-events:none}
-#screen iframe.here{opacity:1;transform:none;pointer-events:auto}
-#screen iframe.gone{opacity:0;transform:translateX(-34px);pointer-events:none}
+#screen iframe.scr{opacity:0;transform:translateX(34px);pointer-events:none;visibility:hidden}
+#screen iframe.here{opacity:1;transform:none;pointer-events:auto;visibility:visible}
+#screen iframe.gone{opacity:0;transform:translateX(-34px);pointer-events:none;visibility:hidden;transition:opacity ${d(0.34)} cubic-bezier(.4,0,.2,1),transform ${d(0.48)} ${EASE_OUT},visibility 0s linear ${d(0.5)}}
 /* Titular estilo editorial (api.headline): entradilla en cursiva liviana y palabra fuerte condensada. */
 #head{position:absolute;left:0;right:0;top:${CAP_TOP + 4}px;z-index:9;text-align:center;padding:0 30px;pointer-events:none}
 #head .kick{font-family:${brand.kickerFont || brand.uiFont},system-ui,sans-serif;font-style:italic;font-weight:300;font-size:34px;line-height:1.05;color:${brand.headKick || brand.accent};min-height:1em}
@@ -550,7 +553,8 @@ const readBlob = async (pg) => {
 	for (const n of Object.keys(screens)) frames[n] = await findFrame(`scr-${n}`);
 	for (const f of Object.values(frames)) {
 		if (!f) continue;
-		await f.waitForLoadState('networkidle');
+		// Con varias pantallas, alguna puede no quedar nunca «sin red» (sondeos, HMR): se espera un rato y se sigue.
+		await f.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => console.log('aviso: una pantalla siguió con red activa; se continúa'));
 		await f.addStyleTag({ content: `*{scrollbar-width:none} ::-webkit-scrollbar{display:none} html{scroll-behavior:auto!important} ${S.frameCss || ''}` });
 		// Imágenes ya decodificadas antes de grabar.
 		await f.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 400) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 150)); } window.scrollTo(0, 0); });
